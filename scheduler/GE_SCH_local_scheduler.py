@@ -13,7 +13,7 @@ import GE_SCH_util
 import quantity
 import requests
 
-config.load_kube_config()
+config.load_incluster_config()
 v1 = client.CoreV1Api()
 
 def call_worker_agent(ip,port,path,pingsize,pingcount) :
@@ -21,12 +21,18 @@ def call_worker_agent(ip,port,path,pingsize,pingcount) :
     print("url=",url)
     headers = {'Content-type':'application/json'}
     payload = {"pingSize": pingsize,"pingCount":pingcount}
+    print("<<1-1>>")
     try :
+        print("<<1>>")
         response = requests.post(url, headers=headers, params=payload)
+        print("<<2>>")
         print(response)
+        print("<<3>>")
+        return 0
     except :
         print("Error: can not request worker agent")
-        exit(1)
+        return -1
+        #exit(1)
 
 
 def nodes_available():
@@ -106,40 +112,29 @@ def get_hostname_by_ip(host_ip):
     return None
 
 
-def get_ip_by_hostname(host_name):
-    print("host_name:", host_name)
-    ret = v1.list_node(watch=False)
-    for node in ret.items:
-        address_list = node.status.addresses
-        is_found = False
-        for temp_address in address_list:
-            if temp_address.type == 'Hostname':
-                if temp_address.address == host_name:
-                    is_found= True 
-        if is_found :
-            for temp_address in address_list:
-                if temp_address.type == 'InternalIP':
-                   return temp_address.address
-    return None
+def get_worker_agent_ip_by_hostname(host_name):
 
+    temp_worker_agent_ip = GE_SCH_redis.get_data_to_redis_server(GE_SCH_define.REDIS_ENDPOINT_IP,
+                                                                 GE_SCH_define.REDIS_ENDPOINT_PORT, GE_SCH_define.WORKER_AGENT_POD_IP+host_name)
+    if temp_worker_agent_ip == None :
+        return None
+    else :
+        return temp_worker_agent_ip
 
-def scheduler(name, node, namespace="default"):
-    #body = client.V1ConfigMap()
-    body = client.V1Binding()
-
+def scheduler(t_name, t_node, t_namespace="default"):
+    
     target = client.V1ObjectReference()
+    
     target.kind = "Node"
     target.apiVersion = "v1"
-    target.name = node
+    target.name = t_node
 
     meta = client.V1ObjectMeta()
-    meta.name = name
+    meta.name = t_name
 
-    body.target = target
-    body.metadata = meta
+    body = client.V1Binding(target=target, metadata=meta)
 
-    return v1.create_namespaced_binding(namespace, body, _preload_content=False)
-    
+    return v1.create_namespaced_binding(namespace=t_namespace, body=body, _preload_content=False)
 
 def get_sorted_available_nodes(available_nodes, temp_dic) :
     return_list=[]
@@ -156,7 +151,15 @@ def get_sorted_available_nodes(available_nodes, temp_dic) :
   local schduler : low latency loop
 ------------------------------------------------'''
 
-def local_lowlatency_schduler(event, sch_config_dic):
+def local_lowlatency_schduler(event, sch_config_dic, temp_namespace):
+    
+    if 'sourceNode' in sch_config_dic:
+        print("sourceNode===========================", sch_config_dic['sourceNode'])
+    else :
+        temp_host_info = GE_SCH_util.get_hostnode_info()
+        sch_config_dic['sourceNode'] = get_hostname_by_ip(temp_host_info["ip_address"])
+        print("sourceNode===========================", sch_config_dic['sourceNode'])
+
     available_nodes = nodes_available()
 
     temp_dic={}
@@ -164,25 +167,34 @@ def local_lowlatency_schduler(event, sch_config_dic):
     
     # call request network data  to worker_agent  
     #print('sch_config_dic=======================', sch_config_dic)
-    request_worker_ip = get_ip_by_hostname(sch_config_dic['sourceNode'].lower())
-    #print("get_ip_by_hostname", request_worker_ip)
+    request_worker_ip = get_worker_agent_ip_by_hostname(sch_config_dic['sourceNode'].lower())
+    if request_worker_ip == None :
+        return -1
+    else :
+        print("get_worker_agent_ip_by_hostname", request_worker_ip)
 
-    call_worker_agent(request_worker_ip, str(GE_SCH_define.WORKER_SERVICE_PORT),
+    temp_return = call_worker_agent(request_worker_ip, str(GE_SCH_define.WORKER_SERVICE_PORT),
                        '/ge/api/v1/monitoring/latency/hostNode', GE_SCH_define.NETWORK_PING_SIZE, GE_SCH_define.NETWORK_PING_COUNT)
-    
+    if temp_return < 0 :
+        return -1
+    print("GE_SCH_define.REDIS_ENDPOINT_IP", GE_SCH_define.REDIS_ENDPOINT_IP)
+    print("GE_SCH_define.REDIS_ENDPOINT_PORT", GE_SCH_define.REDIS_ENDPOINT_PORT)
     temp_dic = GE_SCH_redis.get_data_to_redis_server(
-        GE_SCH_define.REDIS_ENDPOINT_IP, GE_SCH_define.REDIS_ENDPOINT_PORT, sch_config_dic['sourceNode'].lower())
+        GE_SCH_define.REDIS_ENDPOINT_IP, GE_SCH_define.REDIS_ENDPOINT_PORT, GE_SCH_define.WORKER_AGENT_NETWORK_LATENCY+sch_config_dic['sourceNode'].lower())
 
-    #print("tempdic====================",temp_dic)
+    print("tempdic====================",temp_dic)
+    if temp_dic == None :
+        return -1
     
     sorted_availe_nodes = get_sorted_available_nodes(available_nodes, temp_dic)
     print('sorted_availe_nodes=====================', sorted_availe_nodes)
     
     for t_node in sorted_availe_nodes :
         print('t_node============================', t_node)
+        print('temp_namespace============================', temp_namespace)
         try:
-            result = scheduler(event['object'].metadata.name, t_node)
-            #print('result============================',result)
+            result = scheduler(event['object'].metadata.name, t_node, t_namespace=temp_namespace)
+            print('result============================',result)
             if result :
                 print("local_lowlatency_schduler complete")
                 break
@@ -221,13 +233,15 @@ def schduler_loop():
     watch_count = 0
     pending_count = 0
     
-    for event in w.stream(v1.list_namespaced_pod, "default"):
+    #for event in w.stream(v1.list_namespaced_pod, "default"):
+    for event in w.stream(v1.list_pod_for_all_namespaces):    
         if event['object'].status.phase == "Pending" and event['object'].status.conditions == None and event['object'].spec.scheduler_name == GE_SCH_define.LOCAL_SCHEDULER_NAME:
         #if event['object'].status.phase == "Pending" and event['object'].spec.scheduler_name == GE_SCH_define.LOCAL_SCHEDULER_NAME:
             try:
                 print("name=============================", event['object'].metadata.name)
                 #print("event['object']=", event['object'])
                 temp_env = event['object'].spec.containers[0].env
+                temp_namespace = event['object'].metadata.namespace
                 print('temp_env=',temp_env)
                 if temp_env == None : 
                     print("warning : related podpreset env was not setted")
@@ -236,26 +250,71 @@ def schduler_loop():
                 sch_config_dic=get_schduler_config(temp_env)
                 if sch_config_dic['type'] == 'local' :
                     if sch_config_dic['priority'] == 'low-latency':
-                        if 'sourceNode' in sch_config_dic:
-                            print("sourceNode===========================",sch_config_dic['sourceNode'])
-                        else :
-                            temp_host_info = GE_SCH_util.get_hostnode_info()
-                            sch_config_dic['sourceNode'] = get_hostname_by_ip(temp_host_info["ip_address"])
-                            print("sourceNode===========================", sch_config_dic['sourceNode'])
-                        local_lowlatency_schduler(event,sch_config_dic)
+                        local_lowlatency_schduler(event,sch_config_dic,temp_namespace)
                     elif sch_config_dic['priority'] == 'low-latency2':
                         print('low-latency2')
                 elif sch_config_dic['type'] == 'global':
                     print('global')
+                else :
+                    print('not defined schedulering')
             except client.rest.ApiException as e:
                 print(json.loads(e.body)['message'])
             print('(pending_count=',pending_count, ')')
             pending_count+=1
         watch_count += 1
         print('(watch_count=', watch_count, ')')
-
+        #print('(spec-----------------------------', event['object'].metadata.namespace, ')')
+        if event['object'].metadata.namespace == 'gedge-system' :
+            print('(env_from---------------------------', event['object'].spec.containers[0].env_from, ')')
+            print('(env---------------------------', event['object'].spec.containers[0].env, ')')
     print("why!!!!")
+
+'''-------------------------------------------------------------
+   - check whether redis pod is runned
+   - check whether worker_agent (pod) is runned  
+   - set ip of worker_agent pods at redis server
+-------------------------------------------------------------'''
+def check_preprocessing():
+    
+    if GE_SCH_define.REDIS_ENDPOINT_IP == None or GE_SCH_define.REDIS_ENDPOINT_PORT == None:
+        return False
+    temp_num = set_worker_agent_info_into_redis()
+    if temp_num <= 0 :
+        return False
+
+    print("check_preprocessing is done")
+    return True
+
+def set_worker_agent_info_into_redis():
+    try:
+        api_response = v1.list_namespaced_pod(
+            "gedge-system", label_selector="app=custom-scheduler-worker-agent")
+        #api_response = api_instance.list_namespaced_pod("gedge-system")
+        #pprint(api_response.items)
+        node_num=0
+        for i in api_response.items:
+            if i.spec.node_name:
+                print("find_host_name_of_pod_byname node name ", i.metadata.name,
+                      i.status.phase, i.spec.node_name, i.status.pod_ip)
+                result = GE_SCH_redis.set_data_to_redis_server(GE_SCH_define.REDIS_ENDPOINT_IP,
+                                                               GE_SCH_define.REDIS_ENDPOINT_PORT, 
+                                                               GE_SCH_define.WORKER_AGENT_POD_IP+(i.spec.node_name).lower(), 
+                                                               i.status.pod_ip)
+                if result == None:
+                   return -1
+                node_num += 1
+        return node_num
+    except ApiException as e:
+        print("Exception when calling CoreV1Api->list_namespaced_pod: %s\n" % e)
+        return 0
 
 
 if __name__ == '__main__':
+    GE_SCH_define.IS_READY_PREPROCESSING = check_preprocessing()
+    if GE_SCH_define.IS_READY_PREPROCESSING:
+        print("check_preprocessing is done")
+    else :
+        print("Error: check_preprocessing")
+        exit(11)
+
     schduler_loop()

@@ -8,7 +8,7 @@ import json
 from operator import itemgetter
 from flask import Flask, request, render_template, redirect, url_for
 
-import daemon
+#import daemon
 
 import GE_SCH_define
 import GE_SCH_redis
@@ -17,7 +17,7 @@ import GE_SCH_util
 app = Flask(__name__)
 
 # Configs can be set in Configuration class directly or using helper utility
-config.load_kube_config()
+config.load_incluster_config()
 v1 = client.CoreV1Api()
 
 def list_pod():
@@ -29,13 +29,27 @@ def list_pod():
 
 
 def get_hostname_by_ip(host_ip):
+    print("get_hostname_by_ip host_ip: ", host_ip)
     ret = v1.list_node(watch=False)
     for node in ret.items:
         address_list = node.status.addresses
         for temp_address in address_list:
+            print("get_hostname_by_ip node.status.addresses: ", temp_address)
             if temp_address.type == 'InternalIP':
+                print("get_hostname_by_ip InternalIP: ", temp_address.address)
                 if temp_address.address == host_ip:
                     return node.metadata.name
+    return None
+
+
+def get_host_name_of_pod_byname(pod_name):
+    res_pods = v1.list_pod_for_all_namespaces(pretty=True)
+    for i in res_pods.items:
+        if i.metadata.name == pod_name:
+            print("find_host_name_of_pod_byname", i.status)
+            if i.spec.node_name:
+                print("find_host_name_of_pod_byname node name ", i.spec.node_name)
+                return i.spec.node_name
     return None
 
 def get_list_worker_node():
@@ -45,7 +59,7 @@ def get_list_worker_node():
         address_list = node.status.addresses
         for temp_address in address_list:
             if temp_address.type == 'InternalIP':
-                #print(temp_address.address)
+                print("get_list_worker_node",temp_address.address)
                 node_dic = {}
                 node_dic["uid"] = node.metadata.uid
                 node_dic["node_name"] = node.metadata.name
@@ -94,42 +108,47 @@ def SetLatencyFromHostNode():
     #    response_data['error'] = 'targetNode is empty'
     #    response = app.response_class(response=json.dumps(response_data), status=200, mimetype='application/json')
     #    return response
-    
-    ping_size = request.values.get("pingSize")
-    print(type(ping_size))
-    if ping_size == None:
-        return GE_SCH_response_wihterror('InvalidRequestContentException', 'error: pingSize is empty')
-    
-    ping_count = request.values.get("pingCount")
-    if ping_count == None:
-        return GE_SCH_response_wihterror('InvalidRequestContentException', 'error: pingCount is empty')
-    
-    temp_hostnode_info = GE_SCH_util.get_hostnode_info()
-    print(temp_hostnode_info)
-    if temp_hostnode_info == None:
-        return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_hostnode_info')
+    try:
+        ping_size = request.values.get("pingSize")
+        print(type(ping_size))
+        if ping_size == None:
+            return GE_SCH_response_wihterror('InvalidRequestContentException', 'error: pingSize is empty')
+        
+        ping_count = request.values.get("pingCount")
+        if ping_count == None:
+            return GE_SCH_response_wihterror('InvalidRequestContentException', 'error: pingCount is empty')
+        
+        temp_hostnode_info = GE_SCH_util.get_hostnode_info()
+        if temp_hostnode_info == None:
+            return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_hostnode_info')
+        '''-------------------------------------------------------------------------------------------------------
+        temp_hostname = get_hostname_by_ip(temp_hostnode_info["ip_address"])
+        if temp_hostname == None:
+            return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_hostname_by_ip')
+        -------------------------------------------------------------------------------------------------------'''
+        
+        temp_hostname = get_host_name_of_pod_byname(temp_hostnode_info["hostname"])
+        if temp_hostname == None:
+            return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_host_name_of_pod_byname')
 
-    temp_hostname = get_hostname_by_ip(temp_hostnode_info["ip_address"])
-    print("temp hostname =", temp_hostname)
-    if temp_hostname == None:
-        return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_hostname_by_ip')
-    
-    worker_nodes = get_list_worker_node()
-    if worker_nodes == None:
-        return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_list_worker_node')
+        worker_nodes = get_list_worker_node()
+        if worker_nodes == None:
+            return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_list_worker_node')
 
-    latency_data=get_nearnodes_latency_from_hostnode(int(ping_size), int(ping_count), worker_nodes)
-    if latency_data == None:
-        return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_nearnodes_latency_from_hostnode')
+        latency_data=get_nearnodes_latency_from_hostnode(int(ping_size), int(ping_count), worker_nodes)
+        if latency_data == None:
+            return GE_SCH_response_wihterror('ServiceInternalException', 'error: get_nearnodes_latency_from_hostnode')
+        
+        result = GE_SCH_redis.set_data_to_redis_server(GE_SCH_define.REDIS_ENDPOINT_IP,
+                                                       GE_SCH_define.REDIS_ENDPOINT_PORT, GE_SCH_define.WORKER_AGENT_NETWORK_LATENCY+temp_hostname, latency_data)
+    except:
+        return GE_SCH_response_wihterror('ServiceInternalException', 'error: SetLatencyFromHostNode')
 
-    result = GE_SCH_redis.set_data_to_redis_server(GE_SCH_define.REDIS_ENDPOINT_IP,
-                             GE_SCH_define.REDIS_ENDPOINT_PORT, temp_hostname, latency_data)
     if result == None:
         return GE_SCH_response_wihterror('ServiceInternalException', 'error: set_data_to_redis_server')
     response_data = {}
     response_data['Result'] = result
-    response = app.response_class(response=json.dumps(
-        response_data), status=200, mimetype='application/json')
+    response = app.response_class(response=json.dumps(response_data), status=200, mimetype='application/json')
     GE_SCH_define.logger.info('SetLatencyFromHostNode')
     return response
 
@@ -153,13 +172,14 @@ def main_program():
     app.run(host='0.0.0.0', port=8787, threaded=True)
 
 
+'''------------------------------------------------------------------------------
 def run():
     context = daemon.DaemonContext()
     logfile_fileno = GE_SCH_define.file_handler.stream.fileno()
     context.files_preserve = [logfile_fileno]
     with context:
         main_program()
-
+------------------------------------------------------------------------------'''
 
 if __name__ == "__main__":
     main_program()

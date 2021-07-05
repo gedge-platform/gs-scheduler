@@ -4,7 +4,7 @@ import GE_SCH_define
 from kubernetes import client, config, watch
 from kubernetes.client.rest import ApiException
 
-config.load_kube_config()
+config.load_incluster_config()
 v1 = client.CoreV1Api()
 
 def set_data_to_redis_server(redis_ip, redis_port, key, data):
