@@ -1,17 +1,35 @@
-# GE-Global Scheduler
+# GE-Global Scheduler 3.0
 
-## Multiple Cluster 적용을 위한 버전으로 gedge scheduler 기능 확대 
+## For Multiple Edge Clusters and Cloud Cluster
 
-- 다수 개의 Edge Cluster / Cloud Cluster 을 Target Cluster로 적용  
-- Center Management Cluster와 통합 
+- Can Apply yaml for 3L Clusters (Edge Cluster / Near Edge Cluster / Cloud Cluster)  
+- Updated Center Management Cluster 
 
-## Developing Test System  
+## Updated GEdge-Scheduler Main Core  
 
-- ![test](./assets/test.png)
+- Add New Platform info POD at Center Management Cluster 
+- Changed to Run Front Server POD and GEdge Scheduler Policy PODs All at Once
 
-## 새로운 스케줄러 정책 추가
+![gedge_scheduler_system](./assets/gedge_scheduler_system.png)
 
-- (G)MostRequestedPriority
-- (G)LowLatencyPriority
-- GSelectCluster 
+
+## Updated GEdge-Scheduler Source Code for Multiple Users and Workspace, Project 
+
+- Add Newly Multiple Users
+- Workspace is created from Cluster Set ( User Selected Clusters) 
+
+![user_workspace_project](./assets/user_workspace_project.png)
+
+
+## Set 5 clusters for Developing System  
+- Set Three Edge Clusters 
+- Set One Cloud Cluster (not real cloud) 
+
+![testing_system](./assets/testing_system.png)
+
+## Add New GEdge Schedluer Policy 
+
+- (G)MostRequestedPriority for 3LT 
+- (G)LowLatencyPriority for 3LT
+- GSelectCluster for 3LT
 
