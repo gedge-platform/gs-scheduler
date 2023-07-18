@@ -3,7 +3,7 @@ import json
 import uuid 
 
 class redisController :
-    def __init__(self, redis_ip, redis_port ):
+    def connect_redis_server(self, redis_ip, redis_port ):
         print('redis connecting to ',redis_ip,redis_port)
         self.redisConn = redis.StrictRedis(host=redis_ip, port=redis_port, db=0)
         print('redis connectectd',self.redisConn)

@@ -1,15 +1,15 @@
 '''------------------------------------------------
-              GSCH SERVER 
+             GSCHT SERVER 
 ------------------------------------------------'''
-
-GSCH_SERVER_ENDPOINT_IP     = None
-GSCH_SERVER_ENDPOINT_PORT   = None
-GSCH_SERVER_URL             = None
+GSCH_SERVER_ENDPOINT_IP   = None
+GSCH_SERVER_ENDPOINT_PORT = None
+GSCH_SERVER_URL           = None
+#GSCH_SERVER_URL      = str('http://')+str(GSCH_SERVER_ENDPOINT_IP)+str(':')+str(GSCH_SERVER_ENDPOINT_PORT)
 
 '''------------------------------------------------
-              SELECT_CLUSTER
+              LOW_LATENCY
 ------------------------------------------------'''
-SELF_POLICY_NAME = 'GSelectedCluster'
+SELF_POLICY_NAME = 'GLowLatencyPriority'
 
 '''------------------------------------------------
           DELAY / WAIT TIME 

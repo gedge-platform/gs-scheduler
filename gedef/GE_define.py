@@ -39,15 +39,15 @@ ERROR_CODES = {
     'ResourceNotFoundException': {'Description': 'The resource (for example, a GEdge service or access policy statement) specified in the request does not exist.', 'StatusCode': 404},
     'ServiceInternalException': {'Description': 'The GEdge service encountered an internal error.', 'StatusCode': 500},
     'TokenRefreshRequired': {'Description': 'The provided token must be refreshed.', 'StatusCode': 400},
-    'UnsupportedMediaTypeException': {'Description': 'The content type of the Invoke request body is not JSON.', 'StatusCode': 415},
-    'Not Implemented' : {'Description': 'This request Rest API  is not implemented.', 'StatusCode': 501}
+    'UnsupportedMediaTypeException': {'Description': 'The content type of the Invoke request body is not JSON.', 'StatusCode': 415}    
 }
 '''------------------------------------------------
               GEDGE PLATFORM
 ------------------------------------------------'''
 
-GEDGE_SYSTEM_NAMESPACE   = 'gedge-system-scheduler'
-GEDGE_PLATFORM_API_GATEWAY_HOST = '129.254.202.42'
+GEDGE_SYSTEM_NAMESPACE = "gedge-system-scheduler"
+GEDGE_FAAS_NAMESPACE   = "fission"
+GEDGE_PLATFORM_API_GATEWAY_HOST = "129.254.202.42"
 GEDGE_PLATFORM_API_GATEWAY_PORT = int(31414)
 #GEDGE_PLATFORM_API_GATEWAY_HOST = os.environ['API_GATEWAY_HOST']
 #GEDGE_PLATFORM_API_GATEWAY_PORT = int(os.environ['API_GATEWAY_PORT'])
@@ -55,9 +55,9 @@ PLATFORM_INFO_PREFIX = str('http://')+str(GEDGE_PLATFORM_API_GATEWAY_HOST)+str('
 PLATFORM_GSCH_PREFIX = str('http://')+str(GEDGE_PLATFORM_API_GATEWAY_HOST)+str(':')+str(GEDGE_PLATFORM_API_GATEWAY_PORT) + str('/GEP/GSCH')
 
 '''------------------------------------------------
-              FRONT SERVER 
+              GSERVER 
 ------------------------------------------------'''
-GSCH_FRONT_SERVER_SERVICE_NAME  ='gedge-front-server-service'
+GSCH_SERVER_SERVICE_NAME  = "gedge-gsch-server-service"
 
 '''------------------------------------------------
               KAFKA MESSAGE
@@ -65,16 +65,16 @@ GSCH_FRONT_SERVER_SERVICE_NAME  ='gedge-front-server-service'
 
 KAFKA_SERVICE_NAME    = "gedge-kafka-server-service"
 
-KAFKA_ENDPOINT_IP     = None # will be set witn rest api 
-KAFKA_ENDPOINT_PORT   = None # will be set witn rest api 
-#KAFKA_SERVER_URL      = str(KAFKA_ENDPOINT_IP)+str(':')+str(KAFKA_ENDPOINT_PORT)
-KAFKA_SERVER_URL      = None # will be set witn rest api 
+KAFKA_ENDPOINT_IP     = None # will be set with rest api 
+KAFKA_ENDPOINT_PORT   = None # will be set with rest api 
+#KAFKA_SERVER_URL     = str(KAFKA_ENDPOINT_IP)+str(':')+str(KAFKA_ENDPOINT_PORT)
+KAFKA_SERVER_URL      = None # will be set with rest api 
 
 '''-----------------------------------------------
              KAFKA TOPIC
 -----------------------------------------------'''
-GEDGE_GLOBAL_TOPIC_NAME = "gedge-global-topic"
-GEDGE_API_TOPIC_NAME    = "gedge-api-topic"
+GEDGE_GLOBAL_GSCH_TOPIC_NAME = "gedge-global-gsch-topic"
+GEDGE_GLOBAL_API_TOPIC_NAME  = "gedge-global-api-topic"
 
 '''-----------------------------------------------
               REDIS
@@ -83,8 +83,8 @@ REDIS_SERVICE_NAME    = "gedge-redis-service"
 REDIS_POD_NAME        = "gedge-redis"
 #REDIS_ENDPOINT_IP     = '129.254.202.126'
 #REDIS_ENDPOINT_PORT   = 6379
-REDIS_ENDPOINT_IP     = None # will be set witn rest api 
-REDIS_ENDPOINT_PORT   = None # will be set witn rest api 
+REDIS_ENDPOINT_IP     = None # will be set with rest api 
+REDIS_ENDPOINT_PORT   = None # will be set with rest api 
 REDIS_YAML_KEY        = "gedge-gsch-request-yaml"
 
 '''-----------------------------------------------
@@ -96,10 +96,10 @@ MONGO_DB_SERVICE_NAME = 'gedge-mongo-0'
 # set value from env of yaml
 #MONGO_DB_ENDPOINT_IP   = os.environ['MONGODB_IP']
 #MONGO_DB_ENDPOINT_PORT = int(os.environ['MONGODB_PORT'])
-MONGO_DB_ENDPOINT_IP   = None  # will be set witn rest api 
-MONGO_DB_ENDPOINT_PORT = None  # will be set witn rest api 
+MONGO_DB_ENDPOINT_IP   = None  # will be set with rest api 
+MONGO_DB_ENDPOINT_PORT = None  # will be set with rest api 
 
-GEDGE_PLATFORM_MONGO_DB_NAME             = "gedge_platform_db"
+GEDGE_PLATFORM_INFO_MONGO_DB_NAME        = "gedge_platform_info_db"
 GEDGE_PLATFORM_USER_INFO_MONGO_DB_COL    = "users_info"
 GEDGE_PLATFORM_WSPACE_INFO_MONGO_DB_COL  = "workspaces_info"
 GEDGE_PLATFORM_PROJECT_INFO_MONGO_DB_COL = "projects_info"
@@ -110,5 +110,20 @@ GEDGE_PLATFORM_NETWORK_INFO_MONGO_DB_COL = "networks_info"
 GEDGE_PLATFORM_STORAGE_INFO_MONGO_DB_COL = "storages_info"
 
 GEDGE_PLATFORM_GSCH_MONGO_DB_NAME        = "gedge_platform_gsch_db"
-GSCH_FRONT_SERVER_POLICY_MONGO_DB_COL    = "policies_info"
+GSCH_SERVER_POLICY_MONGO_DB_COL          = "policies_info"
 
+
+'''-----------------------------------------------
+             MOST_REQUEST SCORE
+-----------------------------------------------'''
+MOST_REQUEST_POLICY_GPU_COST_WEIGHT = 200
+
+'''-----------------------------------------------
+      SCHEDULER
+-----------------------------------------------'''
+LOCAL_SCHEDULER_NAME  = "griffin_scheduler"
+
+'''-----------------------------------------------
+      ADMIN USER 
+-----------------------------------------------'''
+ADMIN_DEFAULT_PASSWD  = '1234'

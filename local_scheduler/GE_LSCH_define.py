@@ -1,13 +1,9 @@
-
-
 '''-----------------------------------------------
 LOCAL SCHEDULER
 -----------------------------------------------'''
 
-LOCAL_SCHEDULER_NAME  = "griffin_scheduler"
+#LOCAL_SCHEDULER_NAME  = "griffin_scheduler"
 GEDGE_SCHEDULER_CONFIG_NAME = 'gschConfig'
-CPU_LIMIT_PERCENT     = 70.0
-MEMORY_LIMIT_PERCENT  = 70.0
 
 '''-----------------------------------------------
 WORKER_AGENT
@@ -28,7 +24,8 @@ NEAR_NODES_LOW_LATENCY_PATH = '/monitoring/near-nodes/latency'
 WORKER_AGENT_LABEL = 'gedge-worker-agent'
 
 '''-----------------------------------------------
-ETC
+SCHEDULER POLICY
 -----------------------------------------------'''
 LOW_LATENCY_POLICY  = 'GLowLatencyPriority'
 MOST_REQUEST_POLICY = 'GMostRequestedPriority'
+MOST_REQUEST_POLICY_GPU_COST_WEIGHT = 200

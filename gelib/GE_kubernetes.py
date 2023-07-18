@@ -2,7 +2,7 @@ import sys
 sys.path.append('../gelib')
 sys.path.append('../gedef')
 import GE_define as gDefine
-import GE_platform_util as gUtil
+import GE_platform_util as pUtil
 from kubernetes import client, config, watch
 from kubernetes.client.rest import ApiException
 
@@ -94,3 +94,35 @@ def get_cluster_masternode_ip():
                     cluster_masternode_ip = addr.address
                     return cluster_masternode_ip
     return cluster_masternode_ip
+
+def ge_delete_namespaced_pod(name, namespace) :
+    try:
+        api_response = v1.delete_namespaced_pod(name, namespace)
+        #print(api_response)
+    except ApiException as e:
+        print("Exception when calling CoreV1Api->delete_namespaced_pod: %s\n" % e)
+        
+def isexist_namespace(namespace_name):
+    # Namespace 목록을 조회합니다.
+    namespace_list = v1.list_namespace().items
+
+    # 중복된 Namespace 이름이 있는지 확인합니다.
+    for namespace in namespace_list:
+        if namespace.metadata.name == namespace_name:
+            return True
+    else:
+        return False
+
+def create_namespace(namespace_name):
+     
+    if isexist_namespace(namespace_name):
+        return None
+    else :    
+        namespace = client.V1Namespace()
+        metadata = client.V1ObjectMeta(name=namespace_name)
+        namespace.metadata = metadata
+        # Namespace를 생성합니다.
+        created_namespace=v1.create_namespace(namespace)
+        print("Created Namespace name:", created_namespace.metadata.name)
+        return namespace_name
+

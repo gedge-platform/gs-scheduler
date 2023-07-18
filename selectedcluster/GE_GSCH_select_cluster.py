@@ -5,7 +5,7 @@ import GE_define as gDefine
 import GE_GSCH_selc_define as selcDefine
 
 import GE_kubernetes as gKube
-import GE_platform_util as gUtil
+import GE_platform_util as pUtil
 
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
@@ -15,6 +15,7 @@ from json import dumps
 from json import loads 
 import time 
 import requests
+import urllib
 
 PREFIX = '/GEP/GSCH'
 
@@ -24,7 +25,7 @@ def init_gsch_select_policy():
             KAFKA MESSAGE
     ------------------------------------------------'''
     while 1:     
-        r = gUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.KAFKA_SERVICE_NAME)
+        r = pUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.KAFKA_SERVICE_NAME)
         if r : 
             gDefine.KAFKA_ENDPOINT_IP   = r['access_host']
             gDefine.KAFKA_ENDPOINT_PORT = r['access_port']
@@ -40,7 +41,7 @@ def init_gsch_select_policy():
             REDIS
     -----------------------------------------------'''
     while 1:
-        r = gUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.REDIS_SERVICE_NAME)
+        r = pUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.REDIS_SERVICE_NAME)
         if r : 
             gDefine.REDIS_ENDPOINT_IP   = r['access_host']
             gDefine.REDIS_ENDPOINT_PORT = r['access_port']
@@ -55,29 +56,30 @@ def init_gsch_select_policy():
             MONGO DB 
     -----------------------------------------------'''
     while 1:        
-        r = gUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.MONGO_DB_SERVICE_NAME)
+        r = pUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.MONGO_DB_SERVICE_NAME)
         if r : 
             gDefine.MONGO_DB_ENDPOINT_IP   = r['access_host']
             gDefine.MONGO_DB_ENDPOINT_PORT = r['access_port']
             print(gDefine.MONGO_DB_ENDPOINT_IP,gDefine.MONGO_DB_ENDPOINT_PORT)    
+            print('3')
             break
         else :
             print('wait for running platform service',)
             time.sleep(gDefine.WAIT_RUNNING_PLATFORM_SERVICES_SECOND_TIME) 
             continue
     '''-----------------------------------------------
-                GSCH FRONT SERVER
+                GSCH T SERVER
     -----------------------------------------------'''
     while(1) :
-        r = gUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.GSCH_FRONT_SERVER_SERVICE_NAME)
+        r = pUtil.find_service_from_platform_service_list_with_k8s(gDefine.GEDGE_SYSTEM_NAMESPACE,gDefine.GSCH_SERVER_SERVICE_NAME)
         if r : 
-            selcDefine..GSCH_FRONT_SERVER_ENDPOINT_IP   = r['access_host']
-            selcDefine..GSCH_FRONT_SERVER_ENDPOINT_PORT = r['access_port']
-            selcDefine..GSCH_FRONT_SERVER_URL      = str('http://')+str(selcDefine..GSCH_FRONT_SERVER_ENDPOINT_IP)+str(':')+str(selcDefine..GSCH_FRONT_SERVER_ENDPOINT_PORT)
-            print(selcDefine..GSCH_FRONT_SERVER_ENDPOINT_IP ,selcDefine..GSCH_FRONT_SERVER_ENDPOINT_PORT)    
+            selcDefine.GSCH_SERVER_ENDPOINT_IP   = r['access_host']
+            selcDefine.GSCH_SERVER_ENDPOINT_PORT = r['access_port']
+            selcDefine.GSCH_SERVER_URL      = str('http://')+str(selcDefine.GSCH_SERVER_ENDPOINT_IP)+str(':')+str(selcDefine.GSCH_SERVER_ENDPOINT_PORT)
+            print(selcDefine.GSCH_SERVER_ENDPOINT_IP ,selcDefine.GSCH_SERVER_ENDPOINT_PORT)    
             break
         else:
-            print('wait',gDefine.GSCH_FRONT_SERVER_SERVICE_NAME)
+            print('wait',gDefine.GSCH_SERVER_SERVICE_NAME)
             time.sleep(gDefine.WAIT_RUNNING_PLATFORM_SERVICES_SECOND_TIME)
             continue
 
@@ -135,7 +137,7 @@ class GSelectClusterPriority_Job:
                 'msg':{'requestID': self.requestID,'fileID':self.fileID,'requestData':self.requestDataDic }
             }
 
-            self.producer.send(gDefine.GEDGE_GLOBAL_TOPIC_NAME,value=temp_msg)
+            self.producer.send(gDefine.GEDGE_GLOBAL_GSCH_TOPIC_NAME,value=temp_msg)
             self.producer.flush()
         except:
             return 'process_fail'
@@ -193,19 +195,21 @@ class GSelectClusterPriority_Job:
 def read_dispatched_queue():
     
     t_GE_request_job = None 
-    REQUEST_DISPATCH_QUEUE_URL = selcDefine.GSCH_FRONT_SERVER_URL+f'{PREFIX}/dispatched-queue/schedule/policies/'+selcDefine.SELF_POLICY_NAME
+    REQUEST_DISPATCH_QUEUE_URL = selcDefine.GSCH_SERVER_URL+f'{PREFIX}/dispatchedqueue/policies/'+selcDefine.SELF_POLICY_NAME
 
     while 1 :
         try :
             res = requests.get(REQUEST_DISPATCH_QUEUE_URL)
         except:
-            print('wait front server to run',selcDefine.GSCH_FRONT_SERVER_URL)
+            print('wait gsch server to run',selcDefine.GSCH_SERVER_URL)
             time.sleep(selcDefine.REQUEST_DISPATCH_RETRY_DELAY_SECOND_TIME) 
             continue
         if res.status_code == 200 :
+            print('2')
             request_data_dic = json.loads(res.json())
             print('request_data_dic',request_data_dic)
             t_GE_request_job = GSelectClusterPriority_Job(request_data_dic) 
+            print('3')
             break 
         else :
             print('despatched queue is empty')
@@ -214,8 +218,8 @@ def read_dispatched_queue():
     return t_GE_request_job
 
 
-def start_job_processor():
-    print('start_job_processor')
+def request_job_processor():
+    print('request_job_processor')
     while 1 :
         #read dispatched queue
         GE_request_job = read_dispatched_queue()
@@ -247,20 +251,20 @@ def start_job_processor():
                 continue
         print('==============')
 
-        UPDATE_STATUS_OF_REQUEST_JOB_URL = selcDefine.GSCH_FRONT_SERVER_URL+f'{PREFIX}/dispatched-queue/request_jobs/'+GE_request_job.requestID+'/status/'
+        UPDATE_STATUS_OF_REQUEST_JOB_URL = selcDefine.GSCH_SERVER_URL+f'{PREFIX}/dispatchedqueue/requestjobs/'+GE_request_job.requestID+'/status'
 
         if is_whole_process_status == 'apply_fail' :
-            #GE_request_job.requestDataDic['status'] = 'failed'
-            requests.put(UPDATE_STATUS_OF_REQUEST_JOB_URL+'failed')
+            params = {'changed_status': 'failed'}
         elif is_whole_process_status == 'apply_success' :
-            #GE_request_job.requestDataDic['status'] = 'completed'
-            requests.put(UPDATE_STATUS_OF_REQUEST_JOB_URL+'completed')
+            params = {'changed_status': 'completed'}
         elif is_whole_process_status == 'cancel' :
-            #GE_request_job.requestDataDic['status'] = 'cancel'
-            requests.put(UPDATE_STATUS_OF_REQUEST_JOB_URL+'canceled')
+            params = {'changed_status': 'canceled'}
         else :
-            #GE_request_job.requestDataDic['status'] = 'cancel'
-            requests.put(UPDATE_STATUS_OF_REQUEST_JOB_URL+'canceled')                  
+            params = {'changed_status': 'canceled'}                
+        query_string = urllib.urlencode(params)
+        full_url = "{}?{}".format(UPDATE_STATUS_OF_REQUEST_JOB_URL,query_string)
+        print(full_url)
+        requests.put(full_url)                 
         
 if __name__ == '__main__':
-    start_job_processor()
+    request_job_processor()

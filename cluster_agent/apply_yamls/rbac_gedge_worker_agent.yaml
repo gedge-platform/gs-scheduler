@@ -65,9 +65,9 @@ spec:
       - name: gedge-worker-agent
         image: dockereyes/gedge-worker-agent
         env:
-        - name: MONGODB_IP
-          value: '129.254.202.128'
-        - name: MONGODB_PORT
-          value: '27017'
+        - name: API_GATEWAY_HOST
+          value: '129.254.202.42'
+        - name: API_GATEWAY_PORT
+          value: '31414'            
         ports:
         - containerPort: 5000

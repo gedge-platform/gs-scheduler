@@ -51,10 +51,10 @@ GEDGE_SCHEDULER_NAMESPACE   = 'gedge-system-scheduler'
 '''-----------------------------------------------
              CLUSTER AGENT 
 -----------------------------------------------'''
-#SELF_CLUSTER_NAME = os.environ['GCLUSTER_NAME']
-#SELF_CLUSTER_TYPE = os.environ['GCLUSTER_TYPE']
-SELF_CLUSTER_NAME       = 'c1'
-SELF_CLUSTER_TYPE       = 'baremetal'
+SELF_CLUSTER_NAME = os.environ['GCLUSTER_NAME']
+SELF_CLUSTER_TYPE = os.environ['GCLUSTER_TYPE']
+#SELF_CLUSTER_NAME       = 'c1'
+#SELF_CLUSTER_TYPE       = 'baremetal'
 CLUSTER_AGENT_SAVE_PATH = './tmp'
 
 
@@ -68,7 +68,8 @@ CHECK_WORKER_AGENT_WAIT_SECOND_TIME   = 5
 '''-----------------------------------------------
              SCHEDULER
 -----------------------------------------------'''
-APPLY_RESULT_CHECK_DELAY_SECOND_TIME   = 2
-APPLY_RESULT_CHECK_RETRY_COUNT         = 30
+APPLY_AFTER_DELAY_SECOND_TIME          = 2
+APPLY_RESULT_CHECK_DELAY_SECOND_TIME   = 1
+APPLY_RESULT_CHECK_RETRY_COUNT         = 10
 
 
