@@ -43,3 +43,34 @@
 - (G)LowLatencyPriority for 3LT
 - GSetClusters for 3LT
 - GSelectCluster for 3LT
+
+## Get Start
+- MongDB
+  kubectl create -f mongo-statefulset.yaml
+  kubectl create -f headless-service.yaml
+  kubectl expose pod gedge-mongo-0 --port 27017 --target-port 27017 --type LoadBalancer -n gedge-system-scheduler
+
+- Redis 
+  kubectl apply -k .
+  kubectl apply -f redis_service_LoadBalancer.yaml
+
+- MetalLB
+  kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml
+  kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml
+  kubectl apply -f metallb_configmap.yaml
+
+- Kafka
+  kubectl apply -f kafka.yaml
+  kubectl edit deployment gedge-kafka-server -n gedge-system-scheduler
+  Add env 
+     - name: KAFKA_HOSTNAME
+       value: xxx.xxx.xxx.xxx (host ip)
+- Run Platform Info Server 
+  kubectl apply -frbac_gedge_platform_info.yaml 
+  
+- Run Front Server 
+  kubectl apply -f rbac_gedge_gsch_server.yaml
+
+- Run Cluster Agent for Each Cluster(s)
+  kubectl apply -f rbac_gedge_cluster_agent.yaml
+  
