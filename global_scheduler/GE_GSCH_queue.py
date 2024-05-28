@@ -30,6 +30,8 @@ class RequestQueue:
         else :
             print('error : insert_job')
 
+
+
     def dispatch_RequestJob(self):
         if self.get_total_queue_size() <= 0 :
             print('empty queue')
